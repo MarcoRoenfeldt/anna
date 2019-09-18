@@ -370,7 +370,6 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       working_time_map[4] += time_elapsed;
     }
 
-    // receives replication factor response
     if (pollitems[5].revents & ZMQ_POLLIN) {
       auto work_start = std::chrono::system_clock::now();
 
@@ -419,7 +418,6 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       working_time_map[7] += time_elapsed;
     }
 
-    // gossip updates to other threads
     gossip_end = std::chrono::system_clock::now();
     if (std::chrono::duration_cast<std::chrono::microseconds>(gossip_end -
                                                               gossip_start)
@@ -618,11 +616,15 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       // Only do this if a management_ip is set -- i.e., we are not running in
       // local mode.
       if (management_ip != "NULL") {
+        std::cout << thread_id << ": Starting cache IP GET process" << std::endl;
         kZmqUtil->send_string("", &func_nodes_requester);
+
+        std::cout << thread_id << " (" << std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) << ")" << ": Sent a message to the func_nodes_requester" << std::endl;
         // Get the response.
         StringSet func_nodes;
         func_nodes.ParseFromString(
             kZmqUtil->recv_string(&func_nodes_requester));
+        std::cout << thread_id << " (" << std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) << ")"<< ": Received a response from the func_nodes_requester" << std::endl;
 
         // Update extant_caches with the response.
         set<Address> deleted_caches = std::move(extant_caches);
@@ -631,6 +633,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
           deleted_caches.erase(func_node);
           extant_caches.insert(func_node);
         }
+        std::cout << thread_id << ": Calculated extant caches." << std::endl;
 
         // Process deleted caches
         // (cache IPs that we were tracking but were not in the newest list of
@@ -641,6 +644,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
             key_and_caches.second.erase(cache_ip);
           }
         }
+        std::cout << thread_id << ": Processed deleted caches." << std::endl;
 
         // Get the cached keys by cache IP.
         // First, prepare the requests for all the IPs we know about
@@ -653,12 +657,14 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
               local_hash_rings[Tier::MEMORY], addr_request_map,
               wt.cache_ip_response_connect_address(), rid);
         }
+        std::cout << thread_id << ": Created metadata GET requests." << std::endl;
 
         // Loop over the address request map and execute all the requests.
         for (const auto &addr_request : addr_request_map) {
           send_request<KeyRequest>(addr_request.second,
                                    pushers[addr_request.first]);
         }
+        std::cout << thread_id << ": Finished cache IP GET process" << std::endl;
       }
 
       // reset stats tracked in memory

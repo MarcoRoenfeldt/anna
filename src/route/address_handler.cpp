@@ -27,6 +27,7 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
   addr_response.set_response_id(addr_request.request_id());
   bool succeed;
 
+
   int num_servers = 0;
   for (const auto &pair : global_hash_rings) {
     num_servers += pair.second.size();
@@ -44,6 +45,8 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
     respond = true;
   } else { // if there are servers, attempt to return the correct threads
     for (const Key &key : addr_request.keys()) {
+      std::cout << "Received key address request for " << key << std::endl;
+      log->info("Received key address request for {}", key);
       ServerThreadList threads = {};
 
       for (const Tier &tier : kAllTiers) {
@@ -58,9 +61,12 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
 
         if (!succeed) { // this means we don't have the replication factor for
                         // the key
+          std::cout << "Making the request pending" << std::endl;
           pending_requests[key].push_back(std::pair<Address, string>(
               addr_request.response_address(), addr_request.request_id()));
           return;
+        } else {
+          std::cout << "Not making the request pending" << std::endl;
         }
       }
 
@@ -75,6 +81,8 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
   }
 
   if (respond) {
+    std::cout << "Sending response: " << addr_response.DebugString() << std::endl;
+    log->info("Sending response {}", addr_response.DebugString());
     string serialized;
     addr_response.SerializeToString(&serialized);
 
